@@ -2,7 +2,7 @@ name: Weekly Report
 
 on:
   schedule:
-    - cron: '0 0 * * 1'
+    - cron: '0 1 * * 1'  # UTC 1:00 Monday (1 hour after daily to avoid race)
   workflow_dispatch:
 
 jobs:

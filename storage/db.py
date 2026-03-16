@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from crawlers.base import Signal
@@ -102,7 +102,7 @@ class Database:
                (signal_id, domain, summary, insight, trend_status, rating, analyzed_at)
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
             (signal_id, domain, summary, insight, trend_status, rating,
-             datetime.utcnow().isoformat()),
+             datetime.now(timezone.utc).isoformat()),
         )
         self.conn.commit()
 
@@ -139,7 +139,7 @@ class Database:
         self.conn.execute(
             """INSERT INTO reports (report_type, content, generated_at)
                VALUES (?, ?, ?)""",
-            (report_type, content, datetime.utcnow().isoformat()),
+            (report_type, content, datetime.now(timezone.utc).isoformat()),
         )
         self.conn.commit()
 
