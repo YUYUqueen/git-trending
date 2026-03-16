@@ -35,6 +35,8 @@
 - GitHub Trending 页面：httpx + BeautifulSoup 解析 HTML
 - Gitee：API Token 认证
 - 请求间隔 1-2 秒
+- GitHub Trending HTML 解析需加结构验证，DOM 变更时触发告警而非静默失败
+- Gitee Trending 接口需在实现时验证，若无专用 API 则改用搜索接口（按 stars + 创建时间排序）
 
 ## 统一信号模型
 
@@ -44,12 +46,13 @@
 @dataclass
 class Signal:
     source: str          # "github" / "gitee"
+    source_id: str       # 唯一标识，如 "github:repo:owner/name" / "github:issue:owner/name#123"
     signal_type: str     # "trending_repo" / "trending_dev" / "topic" / "hot_issue"
     title: str
     url: str
     description: str
     metadata: dict       # stars, forks, language, stars_today, author_info...
-    raw_content: str     # README 内容（用于 LLM 分析）
+    raw_content: str     # README 内容（截取前 3000 字符，用于 LLM 分析）
     collected_at: datetime
 ```
 
@@ -74,30 +77,33 @@ class Signal:
 - 方便迭代调优，不硬编码在代码里
 
 ### 成本估算
-- 每月约 $4（日常分析 ~$3 + 分类/概览 ~$0.3 + 周报 ~$0.5）
+- README 截取前 3000 字符控制 token 消耗
+- 每月约 $5-9（日常分析 ~$4-7 + 分类/概览 ~$0.3 + 周报 ~$0.5）
 
 ## 数据存储
 
 ### SQLite
 
 ```sql
--- 原始信号
+-- 原始信号（同一项目每天一条记录，支持追踪连续上榜）
 CREATE TABLE signals (
     id INTEGER PRIMARY KEY,
     source TEXT,
+    source_id TEXT,        -- 唯一标识如 "github:repo:owner/name"
     signal_type TEXT,
     title TEXT,
-    url TEXT UNIQUE,
+    url TEXT,
     description TEXT,
     metadata JSON,
-    raw_content TEXT,
-    collected_at DATETIME
+    raw_content TEXT,      -- README 截取前 3000 字符
+    collected_at DATE,
+    UNIQUE(source_id, collected_at)  -- 同一项目同一天只存一条
 );
 
 -- LLM 分析结果
 CREATE TABLE analyses (
     id INTEGER PRIMARY KEY,
-    signal_id INTEGER REFERENCES signals(id),
+    signal_id INTEGER REFERENCES signals(id) UNIQUE,  -- 每条信号只分析一次
     domain TEXT,
     summary TEXT,
     insight TEXT,
@@ -114,9 +120,13 @@ CREATE TABLE reports (
 );
 ```
 
+### 持久化策略
+- 使用 GitHub Releases 存储 SQLite 文件（非 git commit），避免仓库体积膨胀
+- 每次运行：下载最新 release 中的 db → 写入新数据 → 上传新 release
+- 备选方案：若 release 方式不稳定，可切换到 GitHub Actions artifact 或 S3
+
 ### 选型理由
-- 单文件，GitHub Actions 里直接 commit 到仓库
-- 不需要数据库服务器
+- 单文件，无需数据库服务器
 - 日均几十条数据，无性能问题
 - 全量保留，不做清理，数据积累本身是价值
 
@@ -149,7 +159,7 @@ git-trending/
 ├── .github/
 │   └── workflows/
 │       ├── daily.yml          # 每日爬取 + 分析 + 推送
-│       └── weekly.yml         # 每周一周报
+│       └── weekly.yml         # 每周一周报（不重新爬取，仅分析过去 7 天已有数据）
 ├── crawlers/
 │   ├── base.py                # Signal 数据模型
 │   ├── github_trending.py     # GitHub Trending 爬虫
@@ -184,8 +194,30 @@ git-trending/
 
 ### GitHub Actions
 - Secrets：`GITHUB_TOKEN`、`GITEE_TOKEN`、`ANTHROPIC_API_KEY`、`TELEGRAM_BOT_TOKEN`、`TELEGRAM_CHAT_ID`
-- 爬取完成后将 `trending.db` commit 回仓库
+- 数据库通过 GitHub Releases 持久化（不 commit 二进制文件）
 - 失败时发 Telegram 告警
+
+## 错误处理
+
+### 流水线策略
+- 各爬虫模块独立运行，单个失败不阻塞其他模块
+- 部分爬取成功时：正常存储已获取的数据，日报中标注缺失的数据源
+- LLM 分析失败时：信号数据照常存储，跳过分析，下次运行时补分析未分析的信号
+- Telegram 发送失败时：报告已持久化在 reports 表中，不丢失
+
+### 重试策略
+- API 调用失败：指数退避重试 3 次（1s → 2s → 4s）
+- GitHub Trending HTML 解析失败：发告警（可能是 DOM 结构变更，需要人工修复爬虫）
+
+### 时区
+- 所有内部时间使用 UTC
+- Telegram 推送显示北京时间（UTC+8）
+- "今日"数据边界：UTC 00:00 ~ 23:59
+- 周报边界：周一 UTC 00:00 开始
+
+### Dry-run 模式
+- `--dry-run` 参数：跑完全流程但不发送 Telegram、不上传数据库
+- 用于本地调试和验证
 
 ## 部署策略
 - V1：GitHub Actions 全自动，零服务器成本
