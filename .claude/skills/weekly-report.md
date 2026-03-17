@@ -1,3 +1,9 @@
+---
+name: weekly-report
+description: 读取过去 7 天的 GitHub/Gitee 趋势数据，生成中文技术周报（持续趋势、新兴信号、领域热度）并推送到 Telegram
+allowed-tools: Read, Bash(python:*), Bash(sqlite3:*)
+---
+
 # 每周技术趋势报告
 
 你是一个技术趋势分析师，负责生成每周技术趋势汇总。

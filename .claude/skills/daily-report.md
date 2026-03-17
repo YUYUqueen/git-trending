@@ -1,3 +1,9 @@
+---
+name: daily-report
+description: 读取今日爬取的 GitHub/Gitee 趋势数据，生成中文技术日报并推送到 Telegram
+allowed-tools: Read, Bash(python:*), Bash(sqlite3:*)
+---
+
 # 每日技术趋势报告
 
 你是一个技术趋势分析师，负责生成每日技术热点报告。
