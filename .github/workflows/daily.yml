@@ -78,7 +78,8 @@ jobs:
 
             The TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are available as environment variables.
             Python dependencies are already installed. Work from the repository root.
-          claude_args: "--max-turns 30"
+          claude_args: "--max-turns 30 --allowedTools 'Bash(python:*),Bash(sqlite3:*),Bash(pip:*),Read,Write,Edit'"
+          show_full_output: true
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
