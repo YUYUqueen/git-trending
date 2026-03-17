@@ -26,7 +26,7 @@ async def _try_trending_endpoint() -> list[dict]:
 
 
 async def _fallback_search() -> list[dict]:
-    params = {"sort": "stars_count", "order": "desc", "per_page": 30, "page": 1}
+    params = {"q": "stars:>100", "sort": "stars_count", "order": "desc", "per_page": 30, "page": 1}
     if config.GITEE_TOKEN:
         params["access_token"] = config.GITEE_TOKEN
     result = await fetch_json(f"{GITEE_API}/search/repositories", params=params)

@@ -74,4 +74,5 @@ def _format_analyses_for_llm(sorted_domains: list) -> str:
 
 
 def _get_rating(analysis: dict) -> int:
-    return analysis.get("rating", 1)
+    rating = analysis.get("rating")
+    return rating if isinstance(rating, int) else 1
