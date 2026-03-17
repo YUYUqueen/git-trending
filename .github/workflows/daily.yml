@@ -68,7 +68,16 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          prompt: "/daily-report"
+          prompt: |
+            You are a technology trend analyst. Read the .claude/skills/daily-report.md file for full instructions, then execute all steps described in it:
+            1. Read today's signals from data/trending.db
+            2. Analyze and classify all projects by domain
+            3. Generate a structured Chinese daily report in Telegram HTML format
+            4. Store the report in the database
+            5. Send it via Telegram using the notify module
+
+            The TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are available as environment variables.
+            Python dependencies are already installed. Work from the repository root.
           claude_args: "--max-turns 30"
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
