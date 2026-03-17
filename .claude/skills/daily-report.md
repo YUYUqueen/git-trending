@@ -66,22 +66,45 @@ SELECT * FROM signals WHERE collected_at = date('now');
 - 对 trending_dev 类型的信号，简要说明该开发者的代表项目和影响力
 - 如果某个项目 metadata 中 stars_today 超过 1000，在异常信号部分单独标注
 
+## 数据库 Schema
+
+```sql
+-- reports 表结构（注意列名是 generated_at，不是 created_at）
+CREATE TABLE reports (
+    id INTEGER PRIMARY KEY,
+    report_type TEXT,      -- 'daily' / 'weekly'
+    content TEXT,
+    generated_at DATETIME
+);
+```
+
 ## 执行步骤
 
-1. 读取今天的 signals 数据
-2. 读取对应的 raw_content（README）
-3. 生成分析报告
-4. 将报告存入 reports 表：
-   ```python
-   from storage.db import Database
-   db = Database("data/trending.db")
-   db.init()
-   db.insert_report("daily", report_content)
-   db.close()
-   ```
-5. 通过 Telegram 推送：
-   ```python
-   import asyncio
-   from notify.telegram import send_report
-   asyncio.run(send_report(report_content))
-   ```
+将报告存入数据库并推送到 Telegram。必须使用下面的**完整脚本**（不要拆成多步）：
+
+```python
+python3 << 'PYEOF'
+import asyncio
+import sys
+sys.path.insert(0, '.')
+
+from storage.db import Database
+from notify.telegram import send_report
+
+# 1. 存入数据库
+db = Database("data/trending.db")
+db.init()
+
+report_content = """在这里放你生成的完整报告内容"""
+
+db.insert_report("daily", report_content)
+print(f"Report stored ({len(report_content)} chars)")
+
+# 2. 推送到 Telegram
+asyncio.run(send_report(report_content))
+print("Telegram sent!")
+db.close()
+PYEOF
+```
+
+重要：存储和推送必须在**同一个脚本**中完成，不要创建单独的 .py 文件。
