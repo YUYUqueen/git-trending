@@ -3,7 +3,7 @@ import asyncio
 import base64
 import logging
 import config
-from crawlers.base import Signal, MAX_RAW_CONTENT_LENGTH
+from crawlers.base import Signal
 from crawlers.http_client import fetch_json
 
 logger = logging.getLogger(__name__)
@@ -26,12 +26,10 @@ async def _rate_limited_fetch(signal: Signal) -> Signal:
 async def _fetch_single_readme(signal: Signal) -> Signal:
     if signal.source == "github" and signal.signal_type in ("trending_repo", "topic"):
         repo_path = signal.source_id.replace("github:repo:", "")
-        content = await _fetch_github_readme(repo_path)
-        signal.raw_content = content[:MAX_RAW_CONTENT_LENGTH]
+        signal.raw_content = await _fetch_github_readme(repo_path)
     elif signal.source == "gitee" and signal.signal_type == "trending_repo":
         repo_path = signal.source_id.replace("gitee:repo:", "")
-        content = await _fetch_gitee_readme(repo_path)
-        signal.raw_content = content[:MAX_RAW_CONTENT_LENGTH]
+        signal.raw_content = await _fetch_gitee_readme(repo_path)
     return signal
 
 

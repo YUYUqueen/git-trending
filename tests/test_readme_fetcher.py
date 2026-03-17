@@ -26,15 +26,15 @@ async def test_fetch_readme_for_github_signal():
 
 
 @pytest.mark.asyncio
-async def test_fetch_readme_truncates_long_content():
-    long_readme = "x" * 5000
+async def test_fetch_readme_preserves_full_content():
+    long_readme = "x" * 10000
     readme_content = base64.b64encode(long_readme.encode()).decode()
     mock_response = {"content": readme_content, "encoding": "base64"}
     with patch("crawlers.readme_fetcher.fetch_json", new_callable=AsyncMock) as mock:
         mock.return_value = mock_response
         signals = [make_signal()]
         updated = await fetch_readme_for_signals(signals)
-    assert len(updated[0].raw_content) == 3000
+    assert len(updated[0].raw_content) == 10000
 
 
 @pytest.mark.asyncio

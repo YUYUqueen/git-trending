@@ -1,6 +1,16 @@
 # Git Trending Intelligence Tool
 
-每日自动爬取 GitHub + Gitee 热点内容的技术情报系统。
+每日自动爬取 GitHub + Gitee 热点内容的技术情报系统。全部使用 Claude Code 订阅驱动，无需 API Key。
+
+## 架构
+
+```
+GitHub Actions (cron) → Python 爬虫 → SQLite → Claude Code Action (skill) → Telegram
+```
+
+- 爬虫：Python 脚本采集数据（`python main.py crawl`）
+- 分析：Claude Code 通过 `.claude/skills/` 中的 skill 执行
+- 推送：Telegram Bot
 
 ## 项目结构
 
@@ -9,11 +19,12 @@
 - `notify/telegram.py` — Telegram Bot 推送
 - `config.py` — 从环境变量和 .env 文件加载配置
 - `main.py` — 爬虫入口（`python main.py crawl`）
+- `.claude/skills/` — Claude Code 分析 skill（daily-report, weekly-report）
 
 ## 数据库
 
 SQLite 文件在 `data/trending.db`，三张表：
-- `signals` — 原始爬取数据（每天每个项目一条）
+- `signals` — 原始爬取数据（每天每个项目一条，含完整 README）
 - `analyses` — LLM 分析结果
 - `reports` — 生成的日报/周报存档
 
@@ -23,9 +34,10 @@ SQLite 文件在 `data/trending.db`，三张表：
 - 报告必须**全量展示**所有项目，不做过滤
 - Telegram 消息使用 **HTML** 格式，单条上限 4096 字符
 - 时区：内部 UTC，显示北京时间（UTC+8）
+- README 完整保存，不截断（订阅模式无 token 成本顾虑）
 
 ## 可用工具
 
 - `storage.db.Database` — 数据库 CRUD
-- `notify.telegram.send_report(text)` — 发送 Telegram 消息
+- `notify.telegram.send_report(text)` — 发送 Telegram 消息（自动拆分长消息）
 - `notify.telegram.send_alert(text)` — 发送告警消息

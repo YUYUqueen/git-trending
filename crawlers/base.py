@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date
-
-MAX_RAW_CONTENT_LENGTH = 3000
 
 
 @dataclass
@@ -17,7 +15,3 @@ class Signal:
     metadata: dict
     raw_content: str
     collected_at: date
-
-    def __post_init__(self):
-        if len(self.raw_content) > MAX_RAW_CONTENT_LENGTH:
-            self.raw_content = self.raw_content[:MAX_RAW_CONTENT_LENGTH]

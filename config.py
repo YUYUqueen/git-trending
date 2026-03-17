@@ -14,13 +14,8 @@ if _env_path.exists():
 # API tokens
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 GITEE_TOKEN = os.getenv("GITEE_TOKEN", "")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
-
-# LLM models
-LLM_MODEL_DAILY = os.getenv("LLM_MODEL_DAILY", "claude-haiku-4-5-20251001")
-LLM_MODEL_WEEKLY = os.getenv("LLM_MODEL_WEEKLY", "claude-sonnet-4-6")
 
 # Storage
 DB_PATH = os.getenv("DB_PATH", "data/trending.db")

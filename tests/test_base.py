@@ -19,8 +19,8 @@ def test_signal_creation():
     assert signal.signal_type == "trending_repo"
 
 
-def test_signal_raw_content_truncation():
-    long_content = "x" * 5000
+def test_signal_preserves_full_content():
+    long_content = "x" * 10000
     signal = Signal(
         source="github",
         source_id="github:repo:owner/name",
@@ -32,4 +32,4 @@ def test_signal_raw_content_truncation():
         raw_content=long_content,
         collected_at=date(2026, 3, 17),
     )
-    assert len(signal.raw_content) == 3000
+    assert len(signal.raw_content) == 10000
