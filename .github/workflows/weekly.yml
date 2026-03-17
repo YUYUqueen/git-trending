@@ -2,7 +2,7 @@ name: Weekly Report
 
 on:
   schedule:
-    - cron: '0 1 * * 1'  # UTC 1:00 Monday (1 hour after daily to avoid race)
+    - cron: '0 1 * * 1'  # UTC 1:00 Monday (after daily crawl completes)
   workflow_dispatch:
 
 jobs:
@@ -10,38 +10,36 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
       - name: Install dependencies
         run: pip install -r requirements.txt
+
       - name: Create data directory
         run: mkdir -p data
+
       - name: Download database from latest release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release download latest --pattern "trending.db" --dir data/ || echo "No database found"
-      - name: Run weekly report
+
+      - name: Generate weekly report with Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: "/weekly-report"
+          claude_args: "--max-turns 30"
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python main.py weekly
+
       - name: Upload database to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete latest --yes || true
           gh release create latest data/trending.db --title "Latest Database" --notes "Auto-updated by weekly pipeline"
-      - name: Alert on failure
-        if: failure()
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          python -c "
-          import asyncio
-          from notify.telegram import send_alert
-          asyncio.run(send_alert('Weekly report pipeline failed! Check GitHub Actions logs.'))
-          "

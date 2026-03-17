@@ -2,48 +2,78 @@ name: Daily Trending
 
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 0 * * *'  # UTC 0:00 = Beijing 8:00
   workflow_dispatch:
 
 jobs:
-  daily:
+  crawl:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
       - name: Install dependencies
         run: pip install -r requirements.txt
+
       - name: Create data directory
         run: mkdir -p data
+
       - name: Download database from latest release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release download latest --pattern "trending.db" --dir data/ || echo "No existing database found, starting fresh"
-      - name: Run daily pipeline
+
+      - name: Run crawler
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python main.py crawl
+
+      - name: Upload database as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trending-db
+          path: data/trending.db
+
+  analyze:
+    needs: crawl
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create data directory
+        run: mkdir -p data
+
+      - name: Download database artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: trending-db
+          path: data/
+
+      - name: Generate daily report with Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: "/daily-report"
+          claude_args: "--max-turns 30"
+        env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python main.py daily
+
       - name: Upload database to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete latest --yes || true
           gh release create latest data/trending.db --title "Latest Database" --notes "Auto-updated by daily pipeline"
-      - name: Alert on failure
-        if: failure()
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          python -c "
-          import asyncio
-          from notify.telegram import send_alert
-          asyncio.run(send_alert('Daily pipeline failed! Check GitHub Actions logs.'))
-          "
